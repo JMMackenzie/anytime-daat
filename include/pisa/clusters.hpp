@@ -14,7 +14,11 @@
 
 namespace pisa {
 
+// Denotes a vector of cluster identifiers
 using cluster_queue = std::vector<uint32_t>;
+
+// Maps a cluster identifer to a start and end docid
+using cluster_map = std::vector<std::pair<uint64_t, uint64_t>>;
 
 // Given a file of clusters to visit for each query, map them into an associative structure.
 // Input format is: 123 : 0 63 22

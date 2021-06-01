@@ -22,7 +22,7 @@ using BlockSize = boost::variant<FixedBlock, VariableBlock>;
 
 // ANYTIME
 template <typename Scorer>
-std::pair<std::vector<uint32_t>, std::vector<float>> static_block_partition(
+std::tuple<std::vector<uint32_t>, std::vector<float>, std::vector<uint32_t>, std::vector<float>> static_block_partition(
     binary_freq_collection::sequence const& seq, Scorer scorer, const uint64_t block_size,
     std::unordered_map<uint32_t, uint32_t>& doc_to_range)
 {
@@ -72,7 +72,7 @@ std::pair<std::vector<uint32_t>, std::vector<float>> static_block_partition(
 
 // ANYTIME
 template <typename Scorer>
-std::pair<std::vector<uint32_t>, std::vector<float>> variable_block_partition(
+std::tuple<std::vector<uint32_t>, std::vector<float>, std::vector<uint32_t>, std::vector<float>> variable_block_partition(
     binary_freq_collection const& coll,
     binary_freq_collection::sequence const& seq,
     Scorer scorer,

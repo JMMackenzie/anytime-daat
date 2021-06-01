@@ -123,17 +123,17 @@ class wand_data_compressed {
             }
 
             auto t = block_size.type() == typeid(FixedBlock)
-                ? static_block_partition(seq, scorer, boost::get<FixedBlock>(block_size).size)
+                ? static_block_partition(seq, scorer, boost::get<FixedBlock>(block_size).size, doc_to_range)
                 : variable_block_partition(
-                    coll, seq, scorer, boost::get<VariableBlock>(block_size).lambda);
+                    coll, seq, scorer, doc_to_range, boost::get<VariableBlock>(block_size).lambda);
 
-            float max_score = *(std::max_element(t.second.begin(), t.second.end()));
+            float max_score = *(std::max_element(std::get<1>(t).begin(), std::get<1>(t).end()));
             max_term_weight.push_back(max_score);
             total_elements += seq.docs.size();
-            total_blocks += t.first.size();
+            total_blocks += std::get<0>(t).size();
 
-            block_max_documents.push_back(std::move(t.first));
-            unquantized_block_max_scores.push_back(std::move(t.second));
+            block_max_documents.push_back(std::move(std::get<0>(t)));
+            unquantized_block_max_scores.push_back(std::move(std::get<1>(t)));
 
             return max_term_weight.back();
         }
