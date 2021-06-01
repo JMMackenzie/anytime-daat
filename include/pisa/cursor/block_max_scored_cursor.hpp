@@ -35,6 +35,20 @@ class BlockMaxScoredCursor: public MaxScoredCursor<Cursor> {
         return m_wdata.docid();
     }
     PISA_ALWAYSINLINE void block_max_next_geq(std::uint32_t docid) { m_wdata.next_geq(docid); }
+    
+    // ANYTIME: Next functions expose global_geq on underlying block postings, and allow cursors
+    // to be manipulated via those functions
+    PISA_ALWAYSINLINE void block_max_global_geq(std::uint32_t docid) { m_wdata.global_geq(docid); }
+    
+    void update_range_max_score(uint64_t range)
+    {
+        this->update_max_score(m_wdata.range_score(range));
+    }
+
+    float get_range_max_score(uint64_t range)
+    {
+      return m_wdata.range_score(range);
+    }
 
   private:
     typename Wand::wand_data_enumerator m_wdata;

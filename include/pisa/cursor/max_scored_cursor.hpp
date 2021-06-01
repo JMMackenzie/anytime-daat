@@ -28,6 +28,12 @@ class MaxScoredCursor: public ScoredCursor<Cursor> {
   private:
     float m_max_score;
     float m_query_weight = 1.0;
+
+  // ANYTIME: Allows us to update the local max score with the new per-bound score
+  protected:
+    void update_max_score(float new_score) {
+        m_max_score = this->query_weight() * new_score;
+    }
 };
 
 template <typename Index, typename WandType, typename Scorer>

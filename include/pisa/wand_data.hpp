@@ -21,6 +21,9 @@
 #include "linear_quantizer.hpp"
 #include "scorer/scorer.hpp"
 
+// ANYTIME: Wand data has been modified such that it is aware of cluster
+// boundaries, and stores upper-bounds on a per-cluster basis
+
 class enumerator;
 namespace pisa {
 
@@ -43,7 +46,8 @@ class wand_data {
         const ScorerParams& scorer_params,
         BlockSize block_size,
         bool is_quantized,
-        std::unordered_set<size_t> const& terms_to_drop)
+        std::unordered_set<size_t> const& terms_to_drop,
+        std::vector<uint32_t>& clusters)
         : m_num_docs(num_docs)
     {
         std::vector<uint32_t> doc_lens(num_docs);
@@ -86,6 +90,18 @@ class wand_data {
 
         auto scorer = scorer::from_params(scorer_params, *this);
         {
+
+            spdlog::info("Mapping document identifiers to ranges...");
+            std::unordered_map<uint32_t, uint32_t> doc_to_range;
+            uint32_t doc_id = 0;
+            for (uint32_t cluster_id = 0; cluster_id < clusters.size(); ++cluster_id) {
+                while (doc_id < clusters[cluster_id]) {
+                    doc_to_range[doc_id] = cluster_id;
+                    ++doc_id;
+                }
+            }
+            spdlog::info("Mapped {} documents to ranges.", doc_to_range.size());
+
             pisa::progress progress("Storing score upper bounds", coll.size());
             size_t term_id = 0;
             size_t new_term_id = 0;
@@ -96,7 +112,7 @@ class wand_data {
                     continue;
                 }
                 auto v = builder.add_sequence(
-                    seq, coll, doc_lens, m_avg_len, scorer->term_scorer(new_term_id), block_size);
+                    seq, coll, doc_lens, m_avg_len, scorer->term_scorer(new_term_id), block_size, doc_to_range);
                 max_term_weight.push_back(v);
                 m_index_max_term_weight = std::max(m_index_max_term_weight, v);
                 term_id += 1;
@@ -114,6 +130,7 @@ class wand_data {
         }
         builder.build(m_block_wand);
         m_max_term_weight.steal(max_term_weight);
+        m_doc_ranges.steal(clusters);
     }
 
     float norm_len(uint64_t doc_id) const { return m_doc_lens[doc_id] / m_avg_len; }
@@ -123,6 +140,24 @@ class wand_data {
     size_t term_occurrence_count(uint64_t term_id) const
     {
         return m_term_occurrence_counts[term_id];
+    }
+    
+    // ANYTIME
+    size_t doc_range(uint64_t range_id) const { return m_doc_ranges[range_id]; }
+
+    // ANYTIME
+    size_t num_ranges() const { return m_doc_ranges.size(); }
+
+    // ANYTIME
+    std::vector<std::pair<uint64_t, uint64_t>> all_ranges() {
+        std::vector<std::pair<uint64_t, uint64_t>> ranges;
+        uint64_t lower = 0;
+        for (size_t i = 0; i < num_ranges(); ++i) {
+            uint64_t upper = doc_range(i);
+            ranges.emplace_back(lower, upper);
+            lower = upper + 1;
+        }
+        return ranges;
     }
 
     size_t term_posting_count(uint64_t term_id) const { return m_term_posting_counts[term_id]; }
@@ -153,7 +188,8 @@ class wand_data {
             m_term_posting_counts, "m_term_posting_counts")(m_avg_len, "m_avg_len")(
             m_collection_len, "m_collection_len")(m_num_docs, "m_num_docs")(
             m_max_term_weight, "m_max_term_weight")(
-            m_index_max_term_weight, "m_index_max_term_weight");
+            m_index_max_term_weight, "m_index_max_term_weight")(
+            m_doc_ranges, "m_doc_ranges");
     }
 
   private:
@@ -166,6 +202,7 @@ class wand_data {
     mapper::mappable_vector<uint32_t> m_term_occurrence_counts;
     mapper::mappable_vector<uint32_t> m_term_posting_counts;
     mapper::mappable_vector<float> m_max_term_weight;
+    mapper::mappable_vector<uint32_t> m_doc_ranges;
     MemorySource m_source;
 };
 
@@ -177,11 +214,30 @@ void create_wand_data(
     bool range,
     bool compress,
     bool quantize,
-    std::unordered_set<size_t> const& dropped_term_ids)
+    std::unordered_set<size_t> const& dropped_term_ids,
+    const std::optional<std::string>& clusters_filename)
 {
     spdlog::info("Dropping {} terms", dropped_term_ids.size());
     binary_collection sizes_coll((input_basename + ".sizes").c_str());
     binary_freq_collection coll(input_basename.c_str());
+
+    // ANYTIME: Read cluster mapping into wand data
+    std::vector<uint32_t> clusters;
+    if (clusters_filename) {
+        uint64_t cluster_id, doc_id;
+        uint64_t expected_id = 0;
+        std::ifstream tin(*clusters_filename);
+        while (tin >> cluster_id >> doc_id) {
+            if (cluster_id != expected_id) {
+                spdlog::error("Cluster range file must be sorted in ascending order of range.");
+                std::exit(EXIT_FAILURE);
+            }
+            clusters.push_back(doc_id);
+            ++expected_id;
+        }
+        spdlog::info("Read {} cluster ranges", clusters.size());
+    }
+
 
     if (compress) {
         wand_data<wand_data_compressed<>> wdata(
@@ -191,7 +247,8 @@ void create_wand_data(
             scorer_params,
             block_size,
             quantize,
-            dropped_term_ids);
+            dropped_term_ids,
+            clusters);
         mapper::freeze(wdata, output.c_str());
     } else if (range) {
         wand_data<wand_data_range<128, 1024>> wdata(
@@ -201,7 +258,8 @@ void create_wand_data(
             scorer_params,
             block_size,
             quantize,
-            dropped_term_ids);
+            dropped_term_ids,
+            clusters);
         mapper::freeze(wdata, output.c_str());
     } else {
         wand_data<wand_data_raw> wdata(
@@ -211,7 +269,8 @@ void create_wand_data(
             scorer_params,
             block_size,
             quantize,
-            dropped_term_ids);
+            dropped_term_ids,
+            clusters);
         mapper::freeze(wdata, output.c_str());
     }
 }

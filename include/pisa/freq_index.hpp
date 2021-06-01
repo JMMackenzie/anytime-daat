@@ -101,6 +101,14 @@ class freq_index {
             m_cur_docid = val.second;
         }
 
+        // ANYTIME: This is next_geq but can go backwards,
+        // Naiive implementation
+        void PISA_FLATTEN_FUNC global_geq(uint64_t lower_bound)
+        {
+            reset();
+            next_geq(lower_bound);
+        }
+ 
         void PISA_FLATTEN_FUNC move(uint64_t position)
         {
             auto val = m_docs_enum.move(position);

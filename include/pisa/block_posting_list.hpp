@@ -112,6 +112,31 @@ struct block_posting_list {
             }
         }
 
+        // ANYTIME: This is `next_geq` but it can also allow cursors to move
+        // backwards
+        void PISA_ALWAYSINLINE global_geq(uint64_t lower_bound)
+        {
+            // Case 1: Bound is greater than largest element in list
+            if (PISA_UNLIKELY(lower_bound > block_max(m_blocks - 1))) {
+                m_cur_docid = m_universe;
+                return;
+            }
+
+            // Case 2: It's valid, we'll search for it.
+            // Could binary search or linear search...
+            uint64_t block = 0;
+            while (block_max(block) < lower_bound) {
+                ++block;
+            }
+            decode_docs_block(block);
+
+            // Get to the identifier now
+            while (docid() < lower_bound) {
+                m_cur_docid += m_docs_buf[++m_pos_in_block] + 1;
+                assert(m_pos_in_block < m_cur_block_size);
+            }
+        }
+
         void PISA_ALWAYSINLINE next_geq(uint64_t lower_bound)
         {
             assert(lower_bound >= m_cur_docid || position() == 0);

@@ -54,6 +54,7 @@ class wand_data_range {
                 posting_lists);
         }
 
+        // ANYTIME: Unimplemented
         template <typename Scorer>
         float add_sequence(
             binary_freq_collection::sequence const& term_seq,
@@ -61,8 +62,16 @@ class wand_data_range {
             std::vector<uint32_t> const& doc_lens,
             float avg_len,
             Scorer scorer,
-            [[maybe_unused]] BlockSize block_size)
+            [[maybe_unused]] BlockSize block_size,
+            std::unordered_map<uint32_t, uint32_t>& doc_to_range)
         {
+
+            if (doc_to_range.size() > 0) {
+                spdlog::error("Sorry, ranges and clusters are not yet supported together.");
+                std::exit(EXIT_FAILURE);
+            }
+
+
             float max_score = 0.0F;
 
             std::vector<float> b_max(blocks_num, 0.0F);

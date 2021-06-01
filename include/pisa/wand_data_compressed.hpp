@@ -112,8 +112,16 @@ class wand_data_compressed {
             std::vector<uint32_t> const& doc_lens,
             float avg_len,
             Scorer scorer,
-            BlockSize block_size)
+            BlockSize block_size,
+            std::unordered_map<uint32_t, uint32_t>& doc_to_range)
         {
+
+            // ANYTIME: We do not support compressed wand data yet -- please use plain wand data for now.
+            if (doc_to_range.size() > 0) {
+                spdlog::error("Sorry, compressed wand data and clusters are not yet supported together.");
+                std::exit(EXIT_FAILURE);
+            }
+
             auto t = block_size.type() == typeid(FixedBlock)
                 ? static_block_partition(seq, scorer, boost::get<FixedBlock>(block_size).size)
                 : variable_block_partition(
@@ -187,6 +195,21 @@ class wand_data_compressed {
                 uint64_t mask = (1U << configuration::get().quantization_bits) - 1;
                 m_cur_score_index = (val.second & mask);
             }
+        }
+
+        // ANYTIME: Naiive implementation of global_geq
+        void PISA_FLATTEN_FUNC global_geq(uint64_t lower_bound)
+        {
+            reset();
+            next_geq(lower_bound);
+        }
+
+        // ANYTIME: Return the upper-bound of a given range.
+        float PISA_NOINLINE range_score(uint64_t range_id) const 
+        {
+            std::cerr << "NOT IMPLEMENTED.\n";
+            std::exit(EXIT_FAILURE);
+            return 0.0f;
         }
 
         float PISA_FLATTEN_FUNC score()
