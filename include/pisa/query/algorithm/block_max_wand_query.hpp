@@ -7,7 +7,7 @@
 namespace pisa {
 
 struct block_max_wand_query {
-    explicit block_max_wand_query(topk_queue& topk) : m_topk(topk) {}
+    explicit block_max_wand_query(topk_queue& topk, cluster_map& range_to_docid) : m_topk(topk), m_range_to_docid(range_to_docid) {}
 
     // Default Block Max WAND query
     template <typename CursorRange>
@@ -165,7 +165,7 @@ struct block_max_wand_query {
     // It will terminate when it exhausts the list of clusters provided, or
     // when max_clusters have been examined.
     template <typename CursorRange>
-    void ordered_range_query(CursorRange&& cursors, const cluster_map& range_to_docid, const cluster_queue& selected_ranges, const size_t max_clusters)
+    void ordered_range_query(CursorRange&& cursors, const cluster_queue& selected_ranges, const size_t max_clusters)
     {
         using Cursor = typename std::decay_t<CursorRange>::value_type;
         if (cursors.empty()) {
@@ -181,8 +181,8 @@ struct block_max_wand_query {
 
         size_t processed_clusters = 0;
 
-        // Main loop operates over the queue of shards
-        for (const auto& shard_id : selected_shards) {
+        // Main loop operates over the queue of clusters
+        for (const auto& shard_id : selected_ranges) {
 
             // Termination check
             if (processed_clusters == max_clusters) {
@@ -191,8 +191,8 @@ struct block_max_wand_query {
             ++processed_clusters;
 
             // Pick up the [start, end] range
-            auto start = range_to_docid[shard_id].first;
-            auto end = range_to_docid[shard_id].second;
+            auto start = m_range_to_docid[shard_id].first;
+            auto end = m_range_to_docid[shard_id].second;
 
             // Get pivots to the right doc and sets up
             // the range-wise bound scores
@@ -353,7 +353,7 @@ struct block_max_wand_query {
     // It will terminate when the range-wise upper-bound is lower than the top-k heap
     // threshold, or when max_clusters have been examined.
     template <typename CursorRange>
-    void boundsum_range_query(CursorRange&& cursors, const cluster_map& range_to_docid, const size_t max_clusters)
+    void boundsum_range_query(CursorRange&& cursors, const size_t max_clusters)
     {
         using Cursor = typename std::decay_t<CursorRange>::value_type;
         if (cursors.empty()) {
@@ -370,8 +370,7 @@ struct block_max_wand_query {
         // BoundSum computation: For each range, get the boundsum.
         std::vector<std::pair<size_t, float>> range_and_score;
         size_t range_id = 0;
-        for (const auto& range : ranges) {
-
+        for (const auto& range : m_range_to_docid) {
             float range_bound_sum = 0.0f;
             for (auto& en: cursors) {
                 range_bound_sum += en.get_range_max_score(range_id);
@@ -387,15 +386,15 @@ struct block_max_wand_query {
         // Main loop operates over the high-to-low threshold ranges
         for (const auto& index : range_and_score) {
 
-            // Termination check: number of shards processed, and thresholds
+            // Termination check: number of clusters processed, and thresholds
             if (processed_clusters == max_clusters || !m_topk.would_enter(index.second)) {
                 return;
             }
             ++processed_clusters;
 
             // Pick up the [start, end] range
-            auto start = range_to_docid[index.first].first;
-            auto end = range_to_docid[index.first].second;
+            auto start = m_range_to_docid[index.first].first;
+            auto end = m_range_to_docid[index.first].second;
 
             // Get pivots to the right doc and sets up
             // the range-wise bound scores
@@ -549,7 +548,7 @@ struct block_max_wand_query {
     // if the elapsed_latency + (risk_factor * average_range_latency) is greater than
     // the specified timout_latency.
     template <typename CursorRange>
-    void boundsum_timeout_query(CursorRange&& cursors, const cluster_map& range_to_docid, const size_t timeout_microseconds, const float risk_factor = 1.0f)
+    void boundsum_timeout_query(CursorRange&& cursors, const size_t timeout_microseconds, const float risk_factor = 1.0f)
     {
         using Cursor = typename std::decay_t<CursorRange>::value_type;
         if (cursors.empty()) {
@@ -569,7 +568,7 @@ struct block_max_wand_query {
         // BoundSum computation: For each range, get the boundsum.
         std::vector<std::pair<size_t, float>> range_and_score;
         size_t range_id = 0;
-        for (const auto& range : ranges) {
+        for (const auto& range : m_range_to_docid) {
 
             float range_bound_sum = 0.0f;
             for (auto& en: cursors) {
@@ -596,8 +595,8 @@ struct block_max_wand_query {
             ++processed_clusters;
 
             // Pick up the [start, end] range
-            auto start = range_to_docid[index.first].first;
-            auto end = range_to_docid[index.first].second;
+            auto start = m_range_to_docid[index.first].first;
+            auto end = m_range_to_docid[index.first].second;
 
             // Get pivots to the right doc and sets up
             // the range-wise bound scores
@@ -759,6 +758,8 @@ struct block_max_wand_query {
 
   private:
     topk_queue& m_topk;
+    cluster_map& m_range_to_docid;
+
 };
 
 }  // namespace pisa

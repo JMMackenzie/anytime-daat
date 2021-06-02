@@ -567,6 +567,38 @@ namespace arg {
         bool m_print_query_id = false;
     };
 
+    // ANYTIME: Handles input of document cluster boundaries (.cluster-range files)
+    struct DocumentClusters {
+        explicit DocumentClusters(CLI::App* app)
+        {
+             m_option = app->add_option(
+                "--document-clusters", m_clusters_filename, "File containing cluster boundaries.");
+        }
+
+        [[nodiscard]] auto clusters_file() const { return m_clusters_filename; }
+        [[nodiscard]] auto* clusters_option() { return m_option; }
+
+      private:
+        std::optional<std::string> m_clusters_filename;
+        CLI::Option* m_option;
+    };
+
+    // ANYTIME: Handles input of query clusters
+    struct QueryClusters {
+        explicit QueryClusters(CLI::App* app)
+        {
+             m_option = app->add_option(
+                "--query-clusters", m_clusters_filename, "File containing clusters to visit for each query.");
+        }
+
+        [[nodiscard]] auto clusters_file() const { return m_clusters_filename; }
+        [[nodiscard]] auto* clusters_option() { return m_option; }
+
+      private:
+        std::optional<std::string> m_clusters_filename;
+        CLI::Option* m_option;
+    };
+
 }  // namespace arg
 
 template <typename... Args>
@@ -595,7 +627,7 @@ using InvertArgs = Args<arg::Invert, arg::Threads, arg::BatchSize<100'000>>;
 using ReorderDocuments = Args<arg::ReorderDocuments, arg::Threads>;
 using CompressArgs =
     pisa::Args<arg::Compress, arg::Encoding, arg::Quantize<arg::ScorerMode::Optional>>;
-using CreateWandDataArgs = pisa::Args<arg::CreateWandData>;
+using CreateWandDataArgs = pisa::Args<arg::CreateWandData, arg::DocumentClusters>;
 
 struct TailyStatsArgs: pisa::Args<arg::WandData<arg::WandMode::Required>, arg::Scorer> {
     explicit TailyStatsArgs(CLI::App* app)

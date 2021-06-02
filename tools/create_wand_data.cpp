@@ -15,5 +15,6 @@ int main(int argc, const char** argv)
         args.range(),
         args.compress(),
         args.quantize(),
-        args.dropped_term_ids());
+        args.dropped_term_ids(),
+        args.clusters_file());
 }

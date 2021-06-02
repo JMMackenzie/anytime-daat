@@ -10,7 +10,7 @@
 namespace pisa {
 
 template <typename Cursor, typename Wand>
-class BlockMaxScoredCursor: public MaxScoredCursor<Cursor> {
+class BlockMaxScoredCursor: public MaxScoredCursor<Cursor, Wand> {
   public:
     using base_cursor_type = Cursor;
 
@@ -20,8 +20,7 @@ class BlockMaxScoredCursor: public MaxScoredCursor<Cursor> {
         float weight,
         float max_score,
         typename Wand::wand_data_enumerator wdata)
-        : MaxScoredCursor<Cursor>(std::move(cursor), std::move(term_scorer), weight, max_score),
-          m_wdata(std::move(wdata))
+        : MaxScoredCursor<Cursor, Wand>(std::move(cursor), std::move(term_scorer), weight, max_score, wdata)
     {}
     BlockMaxScoredCursor(BlockMaxScoredCursor const&) = delete;
     BlockMaxScoredCursor(BlockMaxScoredCursor&&) = default;
@@ -29,29 +28,17 @@ class BlockMaxScoredCursor: public MaxScoredCursor<Cursor> {
     BlockMaxScoredCursor& operator=(BlockMaxScoredCursor&&) = default;
     ~BlockMaxScoredCursor() = default;
 
-    [[nodiscard]] PISA_ALWAYSINLINE auto block_max_score() -> float { return m_wdata.score(); }
+    [[nodiscard]] PISA_ALWAYSINLINE auto block_max_score() -> float { return this->m_wdata.score(); }
     [[nodiscard]] PISA_ALWAYSINLINE auto block_max_docid() -> std::uint32_t
     {
-        return m_wdata.docid();
+        return this->m_wdata.docid();
     }
-    PISA_ALWAYSINLINE void block_max_next_geq(std::uint32_t docid) { m_wdata.next_geq(docid); }
+    PISA_ALWAYSINLINE void block_max_next_geq(std::uint32_t docid) { this->m_wdata.next_geq(docid); }
     
     // ANYTIME: Next functions expose global_geq on underlying block postings, and allow cursors
     // to be manipulated via those functions
-    PISA_ALWAYSINLINE void block_max_global_geq(std::uint32_t docid) { m_wdata.global_geq(docid); }
+    PISA_ALWAYSINLINE void block_max_global_geq(std::uint32_t docid) { this->m_wdata.global_geq(docid); }
     
-    void update_range_max_score(uint64_t range)
-    {
-        this->update_max_score(m_wdata.range_score(range));
-    }
-
-    float get_range_max_score(uint64_t range)
-    {
-      return m_wdata.range_score(range);
-    }
-
-  private:
-    typename Wand::wand_data_enumerator m_wdata;
 };
 
 template <typename Index, typename WandType, typename Scorer>

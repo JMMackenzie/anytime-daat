@@ -148,8 +148,8 @@ class wand_data {
     // ANYTIME
     size_t num_ranges() const { return m_doc_ranges.size(); }
 
-    // ANYTIME
-    std::vector<std::pair<uint64_t, uint64_t>> all_ranges() {
+    // ANYTIME: Grabs a vector of ranges (pairs of [start, end] document identifiers)
+    std::vector<std::pair<uint64_t, uint64_t>> all_ranges() const {
         std::vector<std::pair<uint64_t, uint64_t>> ranges;
         uint64_t lower = 0;
         for (size_t i = 0; i < num_ranges(); ++i) {
