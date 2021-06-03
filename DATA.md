@@ -11,9 +11,9 @@ The data can be downloaded from the following links.
 | Collection | Configuration | Size | MD5 | Download |
 |:-----------|:--------------|-----:|-----|:---------|
 | Queries and Clusters | Misc, see README below. | 898MiB (compressed), 900MiB (uncompressed) | -- | [[FigShare]](https://melbourne.figshare.com/ndownloader/files/28283766)
-| Gov2 | CIFF export via Anserini w. Porter stemming | 33GiB (uncompressed), 5.2GiB (compressed) | 5b4cccfcbcec80c76b96109e8a467cfc | [[CloudStor](https://cloudstor.aarnet.edu.au/plus/s/LnlerBmLyLosNRq/download?path="gov2-qkld-bp.ciff.gz"
+| Gov2 | CIFF export via Anserini w. Porter stemming | 33GiB (uncompressed), 5.2GiB (compressed) | 5b4cccfcbcec80c76b96109e8a467cfc | [[CloudStor]](https://cloudstor.aarnet.edu.au/plus/s/LnlerBmLyLosNRq/download?path="gov2-qkld-bp.ciff.gz")
 )
-| ClueWeb09B | CIFF export via Anserini w. Porter stemming | 89GiB (uncompressed), 20GiB (compressed) | 1ad70c59e6198bb524afa8ed044ab272 | [[CloudStor]]()
+| ClueWeb09B | CIFF export via Anserini w. Porter stemming | 89GiB (uncompressed), 20GiB (compressed) | 1ad70c59e6198bb524afa8ed044ab272 | [[CloudStor]](https://cloudstor.aarnet.edu.au/plus/s/LnlerBmLyLosNRq/download?path="cw09b-qkld-bp.ciff.gz")
 
 
 The remainder of this README is concerned with the `Queries and Clusters` file described above.

@@ -35,7 +35,7 @@ timeout in microseconds.
 So, if you wanted to use `maxscore` to process within each cluster, and you wanted anytime processing, 
 you would use the `maxscore_boundsum_timeout` query type.
 
-See [the examples](examples.md) for some concrete examples of these different algorithms.
+See [the examples](EXAMPLES.md) for some concrete examples of these different algorithms.
 
 ## Annotations
 To make life (an epsilon) easier, the modified aspects of the original PISA code have been annotated
