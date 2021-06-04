@@ -31,45 +31,124 @@
 using namespace pisa;
 using ranges::views::enumerate;
 
+// ANYTIME
 template <typename IndexType, typename WandType>
 void evaluate_queries(
     const std::string& index_filename,
     const std::string& wand_data_filename,
     const std::vector<Query>& queries,
     const std::optional<std::string>& thresholds_filename,
+    const std::optional<std::string>& clusters_filename,
     std::string const& type,
     std::string const& query_type,
     uint64_t k,
     std::string const& documents_filename,
     ScorerParams const& scorer_params,
+    const size_t timeout_microsec,
+    const float risk_factor,
+    const size_t max_clusters,
     std::string const& run_id,
     std::string const& iteration)
 {
     IndexType index(MemorySource::mapped_file(index_filename));
     WandType const wdata(MemorySource::mapped_file(wand_data_filename));
 
+    // ANYTIME: Grab the ranges from the wand data structure
+    auto all_ranges = wdata.all_ranges();
+ 
+    // ANYTIME: Read the input clusters (if any)
+    std::unordered_map<std::string, cluster_queue> ordered_clusters;
+    if (clusters_filename) {
+        ordered_clusters = read_selected_clusters(*clusters_filename);
+        spdlog::info("Read {} queries worth of selected clusters.", ordered_clusters.size());
+        if (ordered_clusters.size() != queries.size()) {
+            spdlog::error("Mismatch in length between queries ({}) and clusters ({}).", queries.size(), ordered_clusters.size());
+            std::exit(1);
+        }
+    }
+ 
     auto scorer = scorer::from_params(scorer_params, wdata);
-    std::function<std::vector<std::pair<float, uint64_t>>(Query)> query_fun;
+    std::function<std::vector<std::pair<float, uint64_t>>(Query, const cluster_queue&)> query_fun;
 
     if (query_type == "wand") {
-        query_fun = [&](Query query) {
+        query_fun = [&](Query query, const cluster_queue&) {
             topk_queue topk(k);
-            wand_query wand_q(topk);
+            wand_query wand_q(topk, all_ranges);
             wand_q(make_max_scored_cursors(index, wdata, *scorer, query), index.num_docs());
             topk.finalize();
             return topk.topk();
         };
-    } else if (query_type == "block_max_wand") {
-        query_fun = [&](Query query) {
+    // ANYTIME: Process provided ranges in order
+    } else if (query_type == "wand_ordered_range") {
+        query_fun = [&](Query query, const cluster_queue& ordered_clusters) {
             topk_queue topk(k);
-            block_max_wand_query block_max_wand_q(topk);
+            wand_query wand_q(topk, all_ranges);
+            wand_q.ordered_range_query(
+                make_max_scored_cursors(index, wdata, *scorer, query), ordered_clusters, max_clusters);
+            topk.finalize();
+            return topk.topk();
+        };
+    // ANYTIME: Process ranges in BoundSum order
+    } else if (query_type == "wand_boundsum") {
+        query_fun = [&](Query query, const cluster_queue&) {
+            topk_queue topk(k);
+            wand_query wand_q(topk, all_ranges);
+            wand_q.boundsum_range_query(
+                make_max_scored_cursors(index, wdata, *scorer, query), max_clusters);
+            topk.finalize();
+            return topk.topk();
+        };
+    // ANYTIME: Process ranges in BoundSum order and aim to stop prior to the timeout
+    } else if (query_type == "wand_boundsum_timeout") {
+        query_fun = [&](Query query, const cluster_queue&) {
+            topk_queue topk(k);
+            wand_query wand_q(topk, all_ranges);
+            wand_q.boundsum_timeout_query(
+                make_max_scored_cursors(index, wdata, *scorer, query), timeout_microsec, risk_factor);
+            topk.finalize();
+            return topk.topk();
+        };
+    } else if (query_type == "block_max_wand") {
+        query_fun = [&](Query query, const cluster_queue&) {
+            topk_queue topk(k);
+            block_max_wand_query block_max_wand_q(topk, all_ranges);
             block_max_wand_q(
                 make_block_max_scored_cursors(index, wdata, *scorer, query), index.num_docs());
             topk.finalize();
             return topk.topk();
         };
+    // ANYTIME: Process provided ranges in order
+    } else if (query_type == "block_max_wand_ordered_range") {
+        query_fun = [&](Query query, const cluster_queue& ordered_clusters) {
+            topk_queue topk(k);
+            block_max_wand_query block_max_wand_q(topk, all_ranges);
+            block_max_wand_q.ordered_range_query(
+                make_block_max_scored_cursors(index, wdata, *scorer, query), ordered_clusters, max_clusters);
+            topk.finalize();
+            return topk.topk();
+        };
+    // ANYTIME: Process ranges in BoundSum order
+    } else if (query_type == "block_max_wand_boundsum") {
+        query_fun = [&](Query query, const cluster_queue&) {
+            topk_queue topk(k);
+            block_max_wand_query block_max_wand_q(topk, all_ranges);
+            block_max_wand_q.boundsum_range_query(
+                make_block_max_scored_cursors(index, wdata, *scorer, query), max_clusters);
+            topk.finalize();
+            return topk.topk();
+        };
+    // ANYTIME: Process ranges in BoundSum order and aim to stop prior to the timeout
+    } else if (query_type == "block_max_wand_boundsum_timeout") {
+        query_fun = [&](Query query, const cluster_queue&) {
+            topk_queue topk(k);
+            block_max_wand_query block_max_wand_q(topk, all_ranges);
+            block_max_wand_q.boundsum_timeout_query(
+                make_block_max_scored_cursors(index, wdata, *scorer, query), timeout_microsec, risk_factor);
+            topk.finalize();
+            return topk.topk();
+        };
     } else if (query_type == "block_max_maxscore") {
-        query_fun = [&](Query query) {
+        query_fun = [&](Query query, const cluster_queue&) {
             topk_queue topk(k);
             block_max_maxscore_query block_max_maxscore_q(topk);
             block_max_maxscore_q(
@@ -78,7 +157,7 @@ void evaluate_queries(
             return topk.topk();
         };
     } else if (query_type == "block_max_ranked_and") {
-        query_fun = [&](Query query) {
+        query_fun = [&](Query query, const cluster_queue&) {
             topk_queue topk(k);
             block_max_ranked_and_query block_max_ranked_and_q(topk);
             block_max_ranked_and_q(
@@ -87,7 +166,7 @@ void evaluate_queries(
             return topk.topk();
         };
     } else if (query_type == "ranked_and") {
-        query_fun = [&](Query query) {
+        query_fun = [&](Query query, const cluster_queue&) {
             topk_queue topk(k);
             ranked_and_query ranked_and_q(topk);
             ranked_and_q(make_scored_cursors(index, *scorer, query), index.num_docs());
@@ -95,7 +174,7 @@ void evaluate_queries(
             return topk.topk();
         };
     } else if (query_type == "ranked_or") {
-        query_fun = [&](Query query) {
+        query_fun = [&](Query query, const cluster_queue&) {
             topk_queue topk(k);
             ranked_or_query ranked_or_q(topk);
             ranked_or_q(make_scored_cursors(index, *scorer, query), index.num_docs());
@@ -103,15 +182,46 @@ void evaluate_queries(
             return topk.topk();
         };
     } else if (query_type == "maxscore") {
-        query_fun = [&](Query query) {
+        query_fun = [&](Query query, const cluster_queue&) {
             topk_queue topk(k);
-            maxscore_query maxscore_q(topk);
+            maxscore_query maxscore_q(topk, all_ranges);
             maxscore_q(make_max_scored_cursors(index, wdata, *scorer, query), index.num_docs());
             topk.finalize();
             return topk.topk();
         };
+    // ANYTIME: Process provided ranges in order
+    } else if (query_type == "maxscore_ordered_range") {
+        query_fun = [&](Query query, const cluster_queue& ordered_clusters) {
+            topk_queue topk(k);
+            maxscore_query maxscore_q(topk, all_ranges);
+            maxscore_q.ordered_range_query(
+                make_max_scored_cursors(index, wdata, *scorer, query), ordered_clusters, max_clusters);
+            topk.finalize();
+            return topk.topk();
+        };
+    // ANYTIME: Process ranges in BoundSum order
+    } else if (query_type == "maxscore_boundsum") {
+        query_fun = [&](Query query, const cluster_queue&) {
+            topk_queue topk(k);
+            maxscore_query maxscore_q(topk, all_ranges);
+            maxscore_q.boundsum_range_query(
+                make_max_scored_cursors(index, wdata, *scorer, query), max_clusters);
+            topk.finalize();
+            return topk.topk();
+        };
+    // ANYTIME: Process ranges in BoundSum order and aim to stop prior to the timeout
+    } else if (query_type == "maxscore_boundsum_timeout") {
+        query_fun = [&](Query query, const cluster_queue&) {
+            topk_queue topk(k);
+            maxscore_query maxscore_q(topk, all_ranges);
+            maxscore_q.boundsum_timeout_query(
+                make_max_scored_cursors(index, wdata, *scorer, query), timeout_microsec, risk_factor);
+            topk.finalize();
+            return topk.topk();
+        };
+ 
     } else if (query_type == "ranked_or_taat") {
-        query_fun = [&, accumulator = Simple_Accumulator(index.num_docs())](Query query) mutable {
+        query_fun = [&, accumulator = Simple_Accumulator(index.num_docs())](Query query, const cluster_queue&) mutable {
             topk_queue topk(k);
             ranked_or_taat_query ranked_or_taat_q(topk);
             ranked_or_taat_q(
@@ -120,7 +230,7 @@ void evaluate_queries(
             return topk.topk();
         };
     } else if (query_type == "ranked_or_taat_lazy") {
-        query_fun = [&, accumulator = Lazy_Accumulator<4>(index.num_docs())](Query query) mutable {
+        query_fun = [&, accumulator = Lazy_Accumulator<4>(index.num_docs())](Query query, const cluster_queue&) mutable {
             topk_queue topk(k);
             ranked_or_taat_query ranked_or_taat_q(topk);
             ranked_or_taat_q(
@@ -138,7 +248,7 @@ void evaluate_queries(
     std::vector<std::vector<std::pair<float, uint64_t>>> raw_results(queries.size());
     auto start_batch = std::chrono::steady_clock::now();
     tbb::parallel_for(size_t(0), queries.size(), [&, query_fun](size_t query_idx) {
-        raw_results[query_idx] = query_fun(queries[query_idx]);
+        raw_results[query_idx] = query_fun(queries[query_idx], ordered_clusters[queries[query_idx].id.value()]);
     });
     auto end_batch = std::chrono::steady_clock::now();
 
@@ -176,6 +286,9 @@ int main(int argc, const char** argv)
     std::string documents_file;
     std::string run_id = "R0";
     bool quantized = false;
+    size_t timeout_micro = 0;
+    size_t max_clusters = 0;
+    float risk_factor = 1.0f;
 
     App<arg::Index,
         arg::WandData<arg::WandMode::Required>,
@@ -183,12 +296,16 @@ int main(int argc, const char** argv)
         arg::Algorithm,
         arg::Scorer,
         arg::Thresholds,
-        arg::Threads>
+        arg::Threads,
+        arg::QueryClusters>
         app{"Retrieves query results in TREC format."};
     app.add_option("-r,--run", run_id, "Run identifier");
     app.add_option("--documents", documents_file, "Document lexicon")->required();
     app.add_flag("--quantized", quantized, "Quantized scores");
-
+    app.add_option("--timeout", timeout_micro, "Query timeout in microseconds (for timeout queries).");
+    app.add_option("--risk", risk_factor, "Risk factor (for timeout queries)");
+    app.add_option("--max-clusters", max_clusters, "The maximum number of clusters to visit.");
+ 
     CLI11_PARSE(app, argc, argv);
 
     tbb::global_control control(tbb::global_control::max_allowed_parallelism, app.threads() + 1);
@@ -205,11 +322,15 @@ int main(int argc, const char** argv)
         app.wand_data_path(),
         app.queries(),
         app.thresholds_file(),
+        app.clusters_file(),
         app.index_encoding(),
         app.algorithm(),
         app.k(),
         documents_file,
         app.scorer_params(),
+        timeout_micro,
+        risk_factor,
+        max_clusters,
         run_id,
         iteration);
 
