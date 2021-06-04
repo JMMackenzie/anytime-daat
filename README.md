@@ -5,11 +5,20 @@ This is the code and data repository for the paper **Anytime Ranking on Document
 ## Reference
 If you use our anytime extensions to PISA in your own research, you can cite the following reference:
 ```
-TODO
+@article{mpm21-tois,
+  author = {J. Mackenzie and M. Petri and A. Moffat},
+  title = {Anytime Ranking for Document-Ordered Indexes},
+  journal = "ACM Trans. on Information Systems",
+  year = {2021},
+  volume = {},
+  number = {},
+  pages = {},
+  note = {To appear}
+}
 ```
 
 ## Changes
-The main changes in this version of the PISA engine allow for anytime query processing. The main
+The main changes in this version of the PISA engine allow for anytime query processing. The
 idea is to cluster the documents in the inverted index, and traverse the index in order of these
 clusters (attempting to visit the most promising clusters first). 
 
