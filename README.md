@@ -2,6 +2,12 @@
 
 This is the code and data repository for the paper **Anytime Ranking on Document-Ordered Indexes** by Joel Mackenzie, Matthias Petri, and Alistair Moffat. 
 
+The paper can be found on the ACM Digital Library: https://dl.acm.org/doi/abs/10.1145/3467890
+
+The author version is also available [here](https://jmmackenzie.io/pdf/mpm22-tois.pdf) or [here](https://people.eng.unimelb.edu.au/ammoffat/abstracts/tois21mpm.pdf).
+
+The work was also covered on the [Amazon Science Blog](https://www.amazon.science/blog/more-efficient-and-reliable-retrieval-of-distributed-data).
+
 ## Reference
 If you use our anytime extensions to PISA in your own research, you can cite the following reference:
 ```
@@ -10,10 +16,13 @@ If you use our anytime extensions to PISA in your own research, you can cite the
   title = {Anytime Ranking for Document-Ordered Indexes},
   journal = "ACM Trans. on Information Systems",
   year = {2021},
-  volume = {},
-  number = {},
-  pages = {},
-  note = {To appear}
+  issue_date = {January 2022},
+  volume = {40},
+  number = {1},
+  url = {https://doi.org/10.1145/3467890},
+  doi = {10.1145/3467890},
+  articleno = {13},
+  numpages = {32},
 }
 ```
 
@@ -136,3 +145,7 @@ If you use PISA in your own research, you can cite the following reference:
   url       = {http://ceur-ws.org/Vol-2409/docker08.pdf}
 }
 ```
+
+# Updates
+
+- 15/07/2022: The ability to do weighted query processing (where query term weights are obeyed) is now available in the `weight-queries` branch. This may get merged into `master` at some stage but will remain on its own branch for now.
