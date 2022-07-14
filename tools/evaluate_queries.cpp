@@ -44,6 +44,7 @@ void evaluate_queries(
     uint64_t k,
     std::string const& documents_filename,
     ScorerParams const& scorer_params,
+    const bool weighted,
     const size_t timeout_microsec,
     const float risk_factor,
     const size_t max_clusters,
@@ -74,7 +75,7 @@ void evaluate_queries(
         query_fun = [&](Query query, const cluster_queue&) {
             topk_queue topk(k);
             wand_query wand_q(topk, all_ranges);
-            wand_q(make_max_scored_cursors(index, wdata, *scorer, query), index.num_docs());
+            wand_q(make_max_scored_cursors(index, wdata, *scorer, query, weighted), index.num_docs());
             topk.finalize();
             return topk.topk();
         };
@@ -84,7 +85,7 @@ void evaluate_queries(
             topk_queue topk(k);
             wand_query wand_q(topk, all_ranges);
             wand_q.ordered_range_query(
-                make_max_scored_cursors(index, wdata, *scorer, query), ordered_clusters, max_clusters);
+                make_max_scored_cursors(index, wdata, *scorer, query, weighted), ordered_clusters, max_clusters);
             topk.finalize();
             return topk.topk();
         };
@@ -94,7 +95,7 @@ void evaluate_queries(
             topk_queue topk(k);
             wand_query wand_q(topk, all_ranges);
             wand_q.boundsum_range_query(
-                make_max_scored_cursors(index, wdata, *scorer, query), max_clusters);
+                make_max_scored_cursors(index, wdata, *scorer, query, weighted), max_clusters);
             topk.finalize();
             return topk.topk();
         };
@@ -104,7 +105,7 @@ void evaluate_queries(
             topk_queue topk(k);
             wand_query wand_q(topk, all_ranges);
             wand_q.boundsum_timeout_query(
-                make_max_scored_cursors(index, wdata, *scorer, query), timeout_microsec, risk_factor);
+                make_max_scored_cursors(index, wdata, *scorer, query, weighted), timeout_microsec, risk_factor);
             topk.finalize();
             return topk.topk();
         };
@@ -113,7 +114,7 @@ void evaluate_queries(
             topk_queue topk(k);
             block_max_wand_query block_max_wand_q(topk, all_ranges);
             block_max_wand_q(
-                make_block_max_scored_cursors(index, wdata, *scorer, query), index.num_docs());
+                make_block_max_scored_cursors(index, wdata, *scorer, query, weighted), index.num_docs());
             topk.finalize();
             return topk.topk();
         };
@@ -123,7 +124,7 @@ void evaluate_queries(
             topk_queue topk(k);
             block_max_wand_query block_max_wand_q(topk, all_ranges);
             block_max_wand_q.ordered_range_query(
-                make_block_max_scored_cursors(index, wdata, *scorer, query), ordered_clusters, max_clusters);
+                make_block_max_scored_cursors(index, wdata, *scorer, query, weighted), ordered_clusters, max_clusters);
             topk.finalize();
             return topk.topk();
         };
@@ -133,7 +134,7 @@ void evaluate_queries(
             topk_queue topk(k);
             block_max_wand_query block_max_wand_q(topk, all_ranges);
             block_max_wand_q.boundsum_range_query(
-                make_block_max_scored_cursors(index, wdata, *scorer, query), max_clusters);
+                make_block_max_scored_cursors(index, wdata, *scorer, query, weighted), max_clusters);
             topk.finalize();
             return topk.topk();
         };
@@ -143,7 +144,7 @@ void evaluate_queries(
             topk_queue topk(k);
             block_max_wand_query block_max_wand_q(topk, all_ranges);
             block_max_wand_q.boundsum_timeout_query(
-                make_block_max_scored_cursors(index, wdata, *scorer, query), timeout_microsec, risk_factor);
+                make_block_max_scored_cursors(index, wdata, *scorer, query, weighted), timeout_microsec, risk_factor);
             topk.finalize();
             return topk.topk();
         };
@@ -152,7 +153,7 @@ void evaluate_queries(
             topk_queue topk(k);
             block_max_maxscore_query block_max_maxscore_q(topk);
             block_max_maxscore_q(
-                make_block_max_scored_cursors(index, wdata, *scorer, query), index.num_docs());
+                make_block_max_scored_cursors(index, wdata, *scorer, query, weighted), index.num_docs());
             topk.finalize();
             return topk.topk();
         };
@@ -161,7 +162,7 @@ void evaluate_queries(
             topk_queue topk(k);
             block_max_ranked_and_query block_max_ranked_and_q(topk);
             block_max_ranked_and_q(
-                make_block_max_scored_cursors(index, wdata, *scorer, query), index.num_docs());
+                make_block_max_scored_cursors(index, wdata, *scorer, query, weighted), index.num_docs());
             topk.finalize();
             return topk.topk();
         };
@@ -169,7 +170,7 @@ void evaluate_queries(
         query_fun = [&](Query query, const cluster_queue&) {
             topk_queue topk(k);
             ranked_and_query ranked_and_q(topk);
-            ranked_and_q(make_scored_cursors(index, *scorer, query), index.num_docs());
+            ranked_and_q(make_scored_cursors(index, *scorer, query, weighted), index.num_docs());
             topk.finalize();
             return topk.topk();
         };
@@ -177,7 +178,7 @@ void evaluate_queries(
         query_fun = [&](Query query, const cluster_queue&) {
             topk_queue topk(k);
             ranked_or_query ranked_or_q(topk);
-            ranked_or_q(make_scored_cursors(index, *scorer, query), index.num_docs());
+            ranked_or_q(make_scored_cursors(index, *scorer, query, weighted), index.num_docs());
             topk.finalize();
             return topk.topk();
         };
@@ -185,7 +186,7 @@ void evaluate_queries(
         query_fun = [&](Query query, const cluster_queue&) {
             topk_queue topk(k);
             maxscore_query maxscore_q(topk, all_ranges);
-            maxscore_q(make_max_scored_cursors(index, wdata, *scorer, query), index.num_docs());
+            maxscore_q(make_max_scored_cursors(index, wdata, *scorer, query, weighted), index.num_docs());
             topk.finalize();
             return topk.topk();
         };
@@ -195,7 +196,7 @@ void evaluate_queries(
             topk_queue topk(k);
             maxscore_query maxscore_q(topk, all_ranges);
             maxscore_q.ordered_range_query(
-                make_max_scored_cursors(index, wdata, *scorer, query), ordered_clusters, max_clusters);
+                make_max_scored_cursors(index, wdata, *scorer, query, weighted), ordered_clusters, max_clusters);
             topk.finalize();
             return topk.topk();
         };
@@ -205,7 +206,7 @@ void evaluate_queries(
             topk_queue topk(k);
             maxscore_query maxscore_q(topk, all_ranges);
             maxscore_q.boundsum_range_query(
-                make_max_scored_cursors(index, wdata, *scorer, query), max_clusters);
+                make_max_scored_cursors(index, wdata, *scorer, query, weighted), max_clusters);
             topk.finalize();
             return topk.topk();
         };
@@ -215,7 +216,7 @@ void evaluate_queries(
             topk_queue topk(k);
             maxscore_query maxscore_q(topk, all_ranges);
             maxscore_q.boundsum_timeout_query(
-                make_max_scored_cursors(index, wdata, *scorer, query), timeout_microsec, risk_factor);
+                make_max_scored_cursors(index, wdata, *scorer, query, weighted), timeout_microsec, risk_factor);
             topk.finalize();
             return topk.topk();
         };
@@ -225,7 +226,7 @@ void evaluate_queries(
             topk_queue topk(k);
             ranked_or_taat_query ranked_or_taat_q(topk);
             ranked_or_taat_q(
-                make_scored_cursors(index, *scorer, query), index.num_docs(), accumulator);
+                make_scored_cursors(index, *scorer, query, weighted), index.num_docs(), accumulator);
             topk.finalize();
             return topk.topk();
         };
@@ -234,7 +235,7 @@ void evaluate_queries(
             topk_queue topk(k);
             ranked_or_taat_query ranked_or_taat_q(topk);
             ranked_or_taat_q(
-                make_scored_cursors(index, *scorer, query), index.num_docs(), accumulator);
+                make_scored_cursors(index, *scorer, query, weighted), index.num_docs(), accumulator);
             topk.finalize();
             return topk.topk();
         };
@@ -328,6 +329,7 @@ int main(int argc, const char** argv)
         app.k(),
         documents_file,
         app.scorer_params(),
+        app.weighted(),
         timeout_micro,
         risk_factor,
         max_clusters,

@@ -37,7 +37,7 @@ class MaxScoredCursor: public ScoredCursor<Cursor> {
 
     float get_range_max_score(uint64_t range)
     {
-      return m_wdata.range_score(range);
+      return this->query_weight() * m_wdata.range_score(range);
     }
 
 
@@ -58,7 +58,7 @@ class MaxScoredCursor: public ScoredCursor<Cursor> {
 
 template <typename Index, typename WandType, typename Scorer>
 [[nodiscard]] auto
-make_max_scored_cursors(Index const& index, WandType const& wdata, Scorer const& scorer, Query query)
+make_max_scored_cursors(Index const& index, WandType const& wdata, Scorer const& scorer, Query query, bool weighted = false)
 {
     auto terms = query.terms;
     auto query_term_freqs = query_freqs(terms);
@@ -67,10 +67,23 @@ make_max_scored_cursors(Index const& index, WandType const& wdata, Scorer const&
     cursors.reserve(query_term_freqs.size());
     std::transform(
         query_term_freqs.begin(), query_term_freqs.end(), std::back_inserter(cursors), [&](auto&& term) {
-            float query_weight = term.second;
-            auto max_weight = query_weight * wdata.max_term_weight(term.first);
+            float term_weight = 1.0f;
+            auto term_id = term.first;
+            auto max_weight = term_weight * wdata.max_term_weight(term.first);
+            if (weighted) {
+                term_weight = term.second;
+                max_weight = term_weight * max_weight;
+                return MaxScoredCursor<typename Index::document_enumerator, WandType>(
+                    index[term.first], 
+                    [scorer = scorer.term_scorer(term_id), weight = term_weight](
+                        uint32_t doc, uint32_t freq) { return weight * scorer(doc, freq); }, 
+                    term_weight,
+                    max_weight, 
+                    wdata.getenum(term.first));
+            }
+
             return MaxScoredCursor<typename Index::document_enumerator, WandType>(
-                index[term.first], scorer.term_scorer(term.first), query_weight, max_weight, wdata.getenum(term.first));
+                index[term.first], scorer.term_scorer(term.first), term_weight, max_weight, wdata.getenum(term.first));
         });
     return cursors;
 }

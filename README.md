@@ -29,7 +29,9 @@ If you use our anytime extensions to PISA in your own research, you can cite the
 ## Changes
 The main changes in this version of the PISA engine allow for anytime query processing. The
 idea is to cluster the documents in the inverted index, and traverse the index in order of these
-clusters (attempting to visit the most promising clusters first). 
+clusters (attempting to visit the most promising clusters first).
+
+**NOTE: This branch allows for query weighting via the --weighted flag in both the `queries` and `evaluate_queries` binaries.** 
 
 ## Algorithms implemented
 Each of the following algorithms is implemented in terms of the `wand`, `block_max_wand`, and
