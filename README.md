@@ -114,7 +114,7 @@ echo "Build the WAND data with ranges included..."
                               --output pisa-indexes/gov2.fixed-40-w-ranges.bm25.bmw \
                               --block-size 40 \
                               --scorer bm25 \
-                              --document-clusters cluster-maps/gov2/qkld-bp.shardmap
+                              --document-clusters cluster-maps/gov2/qkld-bp.cluster-range
 
 echo "Building the term lexicon..."
 ../build/bin/lexicon build pisa-canonical/gov2.terms pisa-indexes/gov2.termlex
