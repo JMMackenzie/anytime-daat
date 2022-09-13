@@ -32,7 +32,7 @@ class MaxScoredCursor: public ScoredCursor<Cursor> {
 
     void update_range_max_score(uint64_t range)
     {
-        this->update_max_score(m_wdata.range_score(range));
+        this->update_max_score(this->query_weight() * m_wdata.range_score(range));
     }
 
     float get_range_max_score(uint64_t range)
