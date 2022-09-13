@@ -30,20 +30,21 @@ class MaxScoredCursor: public ScoredCursor<Cursor> {
 
     [[nodiscard]] PISA_ALWAYSINLINE auto max_score() const noexcept -> float { return m_max_score; }
 
-    void update_range_max_score(uint64_t range)
-    {
-        this->update_max_score(m_wdata.range_score(range));
-    }
-
     float get_range_max_score(uint64_t range)
     {
       return this->query_weight() * m_wdata.range_score(range);
     }
 
+    // get_range_max_score returns the weighted score,
+    // so just update it.
+    void update_range_max_score(uint64_t range)
+    {
+      m_max_score = get_range_max_score(range);
+    }
+
 
   private:
     float m_max_score;
-    float m_query_weight = 1.0;
 
     // ANYTIME: Allows us to update the local max score with the new per-bound score
   protected:
@@ -51,9 +52,6 @@ class MaxScoredCursor: public ScoredCursor<Cursor> {
     // ANYTIME: Move wand data into max_scored_cursor so can access range max values
     typename Wand::wand_data_enumerator m_wdata;
 
-    void update_max_score(float new_score) {
-        m_max_score = this->query_weight() * new_score;
-    }
 };
 
 template <typename Index, typename WandType, typename Scorer>
